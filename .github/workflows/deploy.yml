@@ -17,10 +17,21 @@ jobs:
       - name: Build Docker image
         run: docker build -t cicd-web-app .
 
-      - name: Stop old container
+      - name: Run new container (candidate)
         run: |
-          docker stop web || true
-          docker rm web || true
+          docker rm -f web-new || true
+          docker run -d --name web-new -p 8080:80 cicd-web-app:latest
 
-      - name: Run new container
-        run: docker run -d --name web -p 80:80 cicd-web-app
+      - name: Health check new container
+        run: |
+          sleep 5
+          curl -f http://localhost:8080
+
+      - name: Switch traffic to new container
+        run: |
+          docker rm -f web-current || true
+          docker run -d --name web-current -p 80:80 cicd-web-app:latest
+
+      - name: Cleanup 
+        run: |
+          docker rm -f web-new || true
