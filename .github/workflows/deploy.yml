@@ -25,7 +25,7 @@ jobs:
       - name: Health check new container
         run: |
           sleep 5
-          curl -f http://localhost:8080
+          curl -f http://localhost:8080/health
 
       - name: Remove existing production container
         run: |
