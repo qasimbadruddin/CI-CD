@@ -27,6 +27,10 @@ jobs:
           sleep 5
           curl -f http://localhost:8080
 
+      - name: Stop old container (free port 80)
+        run: |
+          docker rm -f web-current || true
+
       - name: Switch traffic to new container
         run: |
           docker rm -f web-current || true
