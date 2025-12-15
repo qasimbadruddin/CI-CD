@@ -31,9 +31,8 @@ jobs:
         run: |
           docker rm -f web-current || true
 
-      - name: Switch traffic to new container
+      - name: Start new container on port 80
         run: |
-          docker rm -f web-current || true
           docker run -d --name web-current -p 80:80 cicd-web-app:latest
 
       - name: Cleanup 
