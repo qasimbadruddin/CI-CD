@@ -1,4 +1,4 @@
-name: deploy to ec2
+name: Zero downtime deploy
 
 on: 
   push:
@@ -17,30 +17,26 @@ jobs:
       - name: Build Docker image
         run: docker build -t cicd-web-app:latest .
 
-      - name: Run new container (candidate)
+      - name: Run new container on green port
         run: |
-          docker rm -f web-new || true
-          docker run -d --name web-new -p 8080:80 cicd-web-app:latest
+          docker rm -f web-green || true
+          docker run -d --name web-green -p 8082:80 cicd-web-app:latest
 
       - name: Health check new container
         run: |
           sleep 5
-          curl -f http://localhost:8080
+          curl -f http://localhost:8082
 
-      - name: Remove existing production container
-        run: |
-          docker rm -f web-current || true
-          sleep 2
+      - name: Switch traffic to green
+        run |
+          sudo sed -i 's/8081/8082/' /etc/nginx/sites-available/default
+          sudo nginx -t
+          sudo systemctl reload nginx
 
-      - name: Stop old container (free port 80)
+      - name: Stop old blue container
         run: |
-          docker ps --filter "publish=80" -q | xargs -r docker rm -f
-          sleep 2
+          docker rm -f web-blue || true
 
-      - name: Start new container on port 80
+      - name: Rename green to blue
         run: |
-          docker run -d --name web-current -p 80:80 cicd-web-app:latest
-
-      - name: Cleanup 
-        run: |
-          docker rm -f web-new || true
+          docker rename web-green web-blue
