@@ -17,9 +17,12 @@ jobs:
       - name: Build Docker image
         run: docker build -t cicd-web-app:latest .
 
+      - name: Free green slot (port 8082)
+        run: |
+          docker ps --filter "publish=8082" -q | xargs -r docker rm -f
+
       - name: Run new container on green port
         run: |
-          docker rm -f web-green || true
           docker run -d --name web-green -p 8082:80 cicd-web-app:latest
 
       - name: Health check new container
