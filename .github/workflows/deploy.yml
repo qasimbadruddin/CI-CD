@@ -28,7 +28,7 @@ jobs:
           curl -f http://localhost:8082
 
       - name: Switch traffic to green
-        run |
+        run: |
           sudo sed -i 's/8081/8082/' /etc/nginx/sites-available/default
           sudo nginx -t
           sudo systemctl reload nginx
