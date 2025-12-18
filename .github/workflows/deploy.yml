@@ -1,4 +1,4 @@
-name: Zero downtime deploy
+name: CI-CD to ECS
 
 on: 
   push:
@@ -9,38 +9,37 @@ jobs:
   deploy:
     runs-on: self-hosted
 
+    env:
+      AWS_REGION: eu-north-1
+      ECR_REPO: cicd-web-app
+      ECS_CLUSTER: cicd-cluster
+      ECS_SERVICE: CI-CD-service
+      TASK_FAMILY: CI-CD
 
     steps: 
       - name: checkout code
         uses: actions/checkout@v3
 
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region $AWS_REGIO \
+          | docker login --username AWS --password-stdin \
+            058264429057.dkr.ecr.$AWS_REGION.amazonaws.com
+
       - name: Build Docker image
-        run: docker build -t cicd-web-app:latest .
-
-      - name: Free green slot (port 8082)
         run: |
-          docker rm -f web-green || true
-          docker ps --filter "publish=8082" -q | xargs -r docker rm -f
+          docker build -t $ECR_REPO:${{ github.sha }} .
 
-      - name: Run new container on green port
+      - name: Tag & push image
         run: |
-          docker run -d --name web-green -p 8082:80 cicd-web-app:latest
+            docker tag $ECR_REPO:${{ github.sha }} \
+              058264429057.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}
+            docker push \
+              058264429057.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}
 
-      - name: Health check new container
+      - name: Update ECS Service
         run: |
-          sleep 5
-          curl -f http://localhost:8082/health
-
-      - name: Switch traffic to green
-        run: |
-          sudo sed -i 's/8081/8082/' /etc/nginx/sites-available/default
-          sudo nginx -t
-          sudo systemctl reload nginx
-
-      - name: Stop old blue container
-        run: |
-          docker rm -f web-blue || true
-
-      - name: Rename green to blue
-        run: |
-          docker rename web-green web-blue
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --force-new-deployment
