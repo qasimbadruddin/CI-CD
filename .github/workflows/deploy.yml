@@ -37,23 +37,32 @@ jobs:
             docker push \
               058264429057.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}
 
-      - name: Render new task definition
+
+      - name: Download current task definition
         run: |
           aws ecs describe-task-definition \
+            --region $AWS_REGION \
             --task-definition $TASK_FAMILY \
-            --query taskDefinition > task-def.json
+            --query taskDefinition \
+            > task-def.json
 
-          jq --arg IMAGE "058264429057.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}" \
-            '.containerDefinitions[0].image=$IMAGE
+      - name: Render new task definition
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq
+
+          jq --arg IMAGE "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}" \
+            '.containerDefinitions[0].image = $IMAGE
              | del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)' \
             task-def.json > new-task-def.json
 
       - name: Register new task definition
         run: |
           aws ecs register-task-definition \
+            --region $AWS_REGION \
             --cli-input-json file://new-task-def.json
 
-      - name: Update ECS Service
+      - name: Deploy to ECS service
         run: |
           aws ecs update-service \
             --region $AWS_REGION \
