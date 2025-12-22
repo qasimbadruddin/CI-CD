@@ -15,7 +15,7 @@ jobs:
       ECR_REPO: cicd-web-app
       ECS_CLUSTER: cicd-cluster
       ECS_SERVICE: CI-CD-service
-      TASK_FAMILY: cicd-task
+      TASK_FAMILY: CI-CD
 
     steps:
       # 1️⃣ Checkout code
