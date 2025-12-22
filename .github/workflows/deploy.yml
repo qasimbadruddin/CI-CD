@@ -10,6 +10,7 @@ jobs:
     runs-on: self-hosted
 
     env:
+      AWS_ACCOUNT_ID: 058264429057
       AWS_REGION: eu-north-1
       ECR_REPO: cicd-web-app
       ECS_CLUSTER: cicd-cluster
