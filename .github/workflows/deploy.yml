@@ -1,6 +1,6 @@
-name: CI-CD to ECS
+name: CI-CD to ECS (Safe)
 
-on: 
+on:
   push:
     branches:
       - main
@@ -10,36 +10,50 @@ jobs:
     runs-on: self-hosted
 
     env:
-      AWS_ACCOUNT_ID: 058264429057
       AWS_REGION: eu-north-1
+      AWS_ACCOUNT_ID: "058264429057"
       ECR_REPO: cicd-web-app
       ECS_CLUSTER: cicd-cluster
       ECS_SERVICE: CI-CD-service
-      TASK_FAMILY: CI-CD
+      TASK_FAMILY: cicd-task
 
-    steps: 
-      - name: checkout code
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Login to ECR
+      # 2️⃣ Validate critical variables (FAIL FAST)
+      - name: Validate AWS Account ID
+        run: |
+          echo "AWS_ACCOUNT_ID = $AWS_ACCOUNT_ID"
+          if ! [[ "$AWS_ACCOUNT_ID" =~ ^[0-9]{12}$ ]]; then
+            echo "❌ Invalid AWS_ACCOUNT_ID"
+            exit 1
+          fi
+
+      # 3️⃣ Login to ECR
+      - name: Login to Amazon ECR
         run: |
           aws ecr get-login-password --region $AWS_REGION \
           | docker login --username AWS --password-stdin \
-            058264429057.dkr.ecr.$AWS_REGION.amazonaws.com
+            $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
+      # 4️⃣ Build Docker image
       - name: Build Docker image
         run: |
           docker build -t $ECR_REPO:${{ github.sha }} .
 
-      - name: Tag & push image
+      # 5️⃣ Tag & push image
+      - name: Push image to ECR
         run: |
-            docker tag $ECR_REPO:${{ github.sha }} \
-              058264429057.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}
-            docker push \
-              058264429057.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}
+          IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}"
+          echo "Pushing image: $IMAGE_URI"
 
+          docker tag $ECR_REPO:${{ github.sha }} $IMAGE_URI
+          docker push $IMAGE_URI
 
-      - name: Download current task definition
+      # 6️⃣ Fetch current task definition
+      - name: Download current ECS task definition
         run: |
           aws ecs describe-task-definition \
             --region $AWS_REGION \
@@ -47,22 +61,36 @@ jobs:
             --query taskDefinition \
             > task-def.json
 
+      # 7️⃣ Render new task definition (SAFE)
       - name: Render new task definition
         run: |
           sudo apt-get update -y
           sudo apt-get install -y jq
 
-          jq --arg IMAGE "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}" \
+          IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }}"
+          echo "Using image: $IMAGE_URI"
+
+          jq --arg IMAGE "$IMAGE_URI" \
             '.containerDefinitions[0].image = $IMAGE
-             | del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)' \
+             | del(
+                .taskDefinitionArn,
+                .revision,
+                .status,
+                .requiresAttributes,
+                .compatibilities,
+                .registeredAt,
+                .registeredBy
+              )' \
             task-def.json > new-task-def.json
 
+      # 8️⃣ Register new task definition
       - name: Register new task definition
         run: |
           aws ecs register-task-definition \
             --region $AWS_REGION \
             --cli-input-json file://new-task-def.json
 
+      # 9️⃣ Update ECS service
       - name: Deploy to ECS service
         run: |
           aws ecs update-service \
