@@ -1,2 +1,35 @@
-<h1>Live Again woohooo baby!!</h1>
-<h1> It's hard but we manged to run container deployment with the use of AWS services. like</h1>
+<h1>Currently we are running container inside AWS with the help of services like EC2-ECS-ECR</h1>
+
+<h1> Steps to reach here on browser live with AWS are as follows..</h1>
+
+<ol>
+    <li>Created a empty GitHub.</li>
+    <li>Created a EC2 server to run it as an runner.</li>
+    <li>Install and start required tools inside ec2 runner, Such as git, apache, docker, httpd </li>
+    <li>Gived permissions inside runner like..
+        <ol>sudo usermod -aG docker ec2-user</ol>
+        <ol>sudo chown -R ec2-user:ec2-user /var/www/html</ol>
+    </li>
+    <li>Attached a Iam role to EC2 for security.</li>
+    <li>Create a index.html, deploy.yml</li>
+    <li>Make EC2 a CI/CD Runner.</li>
+    <li>Push changes to git, it will run pipeline we created.</li>
+    <li>We see our content live on browser, using http://(public-ip-address).</li>
+    <li>Now we insatll and start ./svc.sh to run Runner as an service. it helps in stay runner online while reboot.</li>
+    <li>Now to run Dockerize CI-CD, We build dockerfile.</li>
+    <li>installed and give permissions as earlier.</li>
+    <li>To test locally we clone our repo to ec2-runner.</li>
+    <li>Updated our pipeline with docker commands.</li>
+    <li>Created health-check in between to rollback updates.</li>
+    <li>Created nginx blue-green deployment.</li>
+    <li>Create a ECR repo.</li>
+    <li>Authenticate docker to ECR.</li>
+    <li>Build and push image to ECR.</li>
+    <li>Created ECS cluster</li>
+    <li>Created task definition</li>
+    <li>Important - Health check commmand - CMD-SHELL, curl -f http://localhost/health || exit 1 </li>
+    <li>Run ECS services</li>
+    <li>important - Attach policy.</li>
+    <li>Important - please check every typo in pipeline and AWS steps to run things smoothly.</li>
+    <li></li>
+</ol>
